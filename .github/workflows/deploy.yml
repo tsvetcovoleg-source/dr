@@ -33,6 +33,7 @@ jobs:
           rsync -av \
             --exclude='.git/' \
             --exclude='.github/' \
+            --exclude='.deploy-trigger' \
             --exclude='config/config.php' \
             --exclude='.env' \
             --exclude='.env.*' \
