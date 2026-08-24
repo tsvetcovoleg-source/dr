@@ -44,6 +44,45 @@ class RuleRepository
         return array_map('intval', $row ?: []);
     }
 
+    public function parameters(): array
+    {
+        $sql = "SELECT c.field_name, c.operator, r.id rule_id, r.rule_code, r.stage_name, r.active, r.priority,
+                       (SELECT COUNT(DISTINCT field_name) FROM rule_conditions) total_parameters
+                FROM rule_conditions c
+                INNER JOIN rules r ON r.id = c.rule_id
+                ORDER BY c.field_name ASC,
+                         FIELD(r.stage_name, 'HARD_REFUSAL_STAGE','RISK_REVIEW_STAGE','PORTFOLIO_SEGMENTATION_STAGE'),
+                         r.priority, r.id, c.id";
+        $parameters = [];
+        foreach ($this->pdo->query($sql)->fetchAll() as $row) {
+            $field = $row['field_name'];
+            if (!isset($parameters[$field])) {
+                $parameters[$field] = [
+                    'field_name' => $field,
+                    'operators' => [],
+                    'rules' => [],
+                    'total_parameters' => (int) $row['total_parameters'],
+                ];
+            }
+            $parameters[$field]['operators'][$row['operator']] = $row['operator'];
+            $ruleId = (int) $row['rule_id'];
+            $parameters[$field]['rules'][$ruleId] = [
+                'id' => $ruleId,
+                'rule_code' => $row['rule_code'],
+                'stage_name' => $row['stage_name'],
+                'active' => (bool) $row['active'],
+                'priority' => (int) $row['priority'],
+            ];
+        }
+        return array_values(array_map(static function (array $parameter): array {
+            $parameter['operators'] = array_values($parameter['operators']);
+            $parameter['rules'] = array_values($parameter['rules']);
+            $parameter['rule_count'] = count($parameter['rules']);
+            $parameter['active_rule_count'] = count(array_filter($parameter['rules'], static fn (array $rule): bool => $rule['active']));
+            return $parameter;
+        }, $parameters));
+    }
+
     public function find(int $id): ?array
     {
         $stmt = $this->pdo->prepare('SELECT r.*, c.id condition_id, c.field_name, c.operator, c.value condition_value, c.sort_order FROM rules r LEFT JOIN rule_conditions c ON c.rule_id=r.id WHERE r.id=? ORDER BY c.sort_order,c.id');
