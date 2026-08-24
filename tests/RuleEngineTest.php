@@ -18,7 +18,12 @@ $rules=[
 $engine=new RuleEngine(new MemoryRepository($rules));
 $a=$engine->evaluate(['BANK_CREDIT_HISTORY_MONTHS_BEFORE_LOAN_DATE'=>'39','CREDIT_ACCOUNTS_OPENED_6M_BEFORE_LOAN_DATE_COUNT'=>'2','UNCLOSED_OTHER_CREDIT_ACCOUNTS_COUNT'=>'1']); expect($a['decision']==='DECLINE'&&$a['matched_rules'][0]['rule_code']==='HR_002','Test A: HR_002 declines');
 expect(!array_key_exists('matched_rule',$a)&&array_keys($a['matched_rules'][0])===['rule_code','avg_actual_pd','priority'],'Test A response contains only the documented matched rule fields');
-expect(str_contains(json_encode($a,JSON_THROW_ON_ERROR),'"avg_actual_pd":51.28'),'Test A average actual PD is rounded in JSON');
+ini_set('serialize_precision','-1');
+$rawJson=json_encode($a,JSON_THROW_ON_ERROR);
+expect(str_contains($rawJson,'"avg_actual_pd":51.28'),'Test A average actual PD is rounded in raw JSON');
+expect(preg_match('/"execution_time_ms":\d+(?:\.\d{1,2})?[,}]/',$rawJson)===1,'Execution time has at most two decimal places in raw JSON');
+$decodedJson=json_decode($rawJson,true,512,JSON_THROW_ON_ERROR);
+expect(is_float($decodedJson['matched_rules'][0]['avg_actual_pd'])&&(is_int($decodedJson['meta']['execution_time_ms'])||is_float($decodedJson['meta']['execution_time_ms'])),'Rounded values remain JSON numbers');
 $b=$engine->evaluate(['RISK_SCORE'=>'6']); expect($b['decision']==='REVIEW','Test B: risk review result');
 $c=$engine->evaluate(['BANK_CREDIT_ACCOUNTS_COUNT'=>'2','HAS_ESTATE'=>'Yes']); expect($c['decision']==='APPROVE'&&$c['matched_rules'][0]['rule_code']==='PS_003','Test C: PS_003 approves');
 $d=$engine->evaluate([]); expect(in_array('BANK_CREDIT_HISTORY_MONTHS_BEFORE_LOAN_DATE',$d['missing_fields'],true)&&$d['decision']==='NO_MATCH','Test D: missing field fails and is reported');
