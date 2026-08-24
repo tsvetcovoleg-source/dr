@@ -1,38 +1,63 @@
-name: Deploy to TopHost
+name: Deploy to cPanel
 
 on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
   push:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: production-deploy
+  group: dr-deploy
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Deploy dr.tvetcov.xyz
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Deploy via FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
+      - name: Prepare deploy package
+        run: |
+          mkdir -p deploy
+          rsync -av \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='config/config.php' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='error_log' \
+            --exclude='*.log' \
+            --exclude='logs/' \
+            --exclude='cache/' \
+            --exclude='tmp/' \
+            --exclude='temp/' \
+            --exclude='uploads/' \
+            --exclude='storage/' \
+            --exclude='node_modules/' \
+            --exclude='README.md' \
+            --exclude='sql/' \
+            ./ deploy/
+
+      - name: Deploy to dr.tvetcov.xyz
+        uses: appleboy/scp-action@v0.1.7
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            config/config.php
-            README.md
-            sql/**
+          host: ${{ secrets.CPANEL_HOST }}
+          port: ${{ secrets.CPANEL_PORT }}
+          username: ${{ secrets.CPANEL_USER }}
+          key: ${{ secrets.CPANEL_SSH_KEY }}
+          passphrase: ${{ secrets.CPANEL_SSH_PASSPHRASE }}
+          source: "deploy/*"
+          target: "/home/pubquest/public_html/dr.tvetcov.xyz/"
+          strip_components: 1
+          overwrite: true
