@@ -30,6 +30,14 @@ class RuleRepository
         return $stmt->fetchAll();
     }
 
+    public function allActive(): array
+    {
+        $sql = 'SELECT r.*, COUNT(c.id) condition_count FROM rules r LEFT JOIN rule_conditions c ON c.rule_id=r.id WHERE r.active=1 GROUP BY r.id ORDER BY FIELD(r.stage_name, ?, ?, ?), r.priority, r.id';
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(self::STAGES);
+        return $stmt->fetchAll();
+    }
+
     public function recent(int $limit = 6): array
     {
         $stmt = $this->pdo->prepare('SELECT r.*, COUNT(c.id) condition_count FROM rules r LEFT JOIN rule_conditions c ON c.rule_id=r.id GROUP BY r.id ORDER BY r.updated_at DESC LIMIT :limit');
