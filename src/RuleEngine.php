@@ -52,7 +52,6 @@ final class RuleEngine
             'success' => true,
             'decision' => $decision,
             'stage' => $stage,
-            'matched_rule' => $matches[0] ?? null,
             'matched_rules' => $matches,
             'missing_fields' => array_keys($missing),
             'meta' => ['rules_checked' => count($rules), 'execution_time_ms' => round((hrtime(true) - $started) / 1e6, 2)],
@@ -91,7 +90,11 @@ final class RuleEngine
 
     private function present(array $rule): array
     {
-        return ['rule_code'=>$rule['rule_code'],'stage_name'=>$rule['stage_name'],'avg_actual_pd'=>(float)$rule['avg_actual_pd'],'priority'=>(int)$rule['priority']];
+        return [
+            'rule_code' => $rule['rule_code'],
+            'avg_actual_pd' => round((float) $rule['avg_actual_pd'], 2),
+            'priority' => (int) $rule['priority'],
+        ];
     }
 }
 

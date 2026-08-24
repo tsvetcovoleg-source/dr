@@ -53,8 +53,9 @@ Example response:
   "success": true,
   "decision": "APPROVE",
   "stage": "PORTFOLIO_SEGMENTATION_STAGE",
-  "matched_rule": {"rule_code": "PS_003", "stage_name": "PORTFOLIO_SEGMENTATION_STAGE", "avg_actual_pd": 2.15, "priority": 30},
-  "matched_rules": [],
+  "matched_rules": [
+    {"rule_code": "PS_003", "avg_actual_pd": 2.15, "priority": 30}
+  ],
   "missing_fields": ["AGE"],
   "meta": {"rules_checked": 16, "execution_time_ms": 1.2}
 }

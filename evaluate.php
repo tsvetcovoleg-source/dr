@@ -6,6 +6,7 @@ use DecisionRules\RuleEngine;
 use DecisionRules\RuleRepository;
 
 header('Content-Type: application/json; charset=utf-8');
+ini_set('serialize_precision', '-1');
 require_once __DIR__ . '/src/Database.php';
 require_once __DIR__ . '/src/RuleRepository.php';
 require_once __DIR__ . '/src/RuleEngine.php';
