@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 use DecisionRules\Database; use DecisionRules\RuleRepository;
-require_once __DIR__.'/../src/bootstrap.php';
-$repo=new RuleRepository(Database::connect(dirname(__DIR__))); $id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT)?:filter_input(INPUT_POST,'id',FILTER_VALIDATE_INT); $rule=$id?$repo->find($id):null; $errors=[];
+require __DIR__.'/_auth.php'; $auth->requireRole('RULE_EDITOR');
+$repo=new RuleRepository($pdo); $id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT)?:filter_input(INPUT_POST,'id',FILTER_VALIDATE_INT); $rule=$id?$repo->find($id):null; $errors=[];
 if($_SERVER['REQUEST_METHOD']==='POST'){
  verify_csrf(); $code=trim((string)($_POST['rule_code']??'')); $stage=(string)($_POST['stage_name']??''); $pd=filter_var($_POST['avg_actual_pd']??null,FILTER_VALIDATE_FLOAT); $priority=filter_var($_POST['priority']??null,FILTER_VALIDATE_INT);
  if(!preg_match('/^[A-Z0-9_-]{2,50}$/',$code))$errors[]='Rule code must contain 2–50 uppercase letters, numbers, underscores, or hyphens.'; if(!in_array($stage,RuleRepository::STAGES,true))$errors[]='Select a valid stage.'; if($pd===false||$pd<0||$pd>100)$errors[]='Average Actual PD must be between 0 and 100.'; if($priority===false||$priority<0)$errors[]='Priority must be a non-negative integer.';

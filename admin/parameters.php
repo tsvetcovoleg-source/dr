@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 use DecisionRules\Database; use DecisionRules\RuleRepository;
-require_once __DIR__.'/../src/bootstrap.php';
+require __DIR__.'/_auth.php'; $auth->requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER']);
 try {
     $repo = new RuleRepository(Database::connect(dirname(__DIR__)));
     $parameters = $repo->parameters();

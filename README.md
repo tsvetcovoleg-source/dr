@@ -22,7 +22,11 @@ No framework, Composer, Node.js, build step, container, or external CDN is requi
    cp config/config.example.php config/config.php
    ```
    `config/config.php` is ignored by Git. Keep it outside public source control.
-4. Point the site's document root at this directory. Opening `/` redirects to the admin dashboard.
+4. Create the first internal administrator from a terminal (the password is read without echo and is never stored in the repository):
+   ```bash
+   php bin/create-admin.php admin "Initial Administrator"
+   ```
+5. Point the site's document root at this directory. Sign in at `/admin/login.php`.
 
 If configuration is absent, the admin shows a setup message and the API returns a safe `CONFIGURATION_ERROR` JSON response. Database failures never expose a DSN, password, SQL, or stack trace.
 
@@ -34,7 +38,7 @@ After importing the database and configuring it:
 php -S 127.0.0.1:8080
 ```
 
-Open <http://127.0.0.1:8080/admin/>. The API tester can construct requests visually.
+Open <http://127.0.0.1:8080/admin/login.php>. The API tester can construct requests visually.
 
 ## Evaluation API
 
@@ -70,7 +74,20 @@ Supported operators are `>`, `>=`, `<`, `<=`, `=`, `!=`, `IN`, `NOT_IN`, `IS_NUL
 - **Add Rule** — dynamic structured AND-condition builder
 - **API Tester** — build a request, inspect formatted JSON, copy its URL, or open raw JSON
 
-All writes use POST, prepared statements, validation, output escaping, and a session CSRF token. For an internet-facing production deployment, protect `/admin/` with hosting-level authentication or another access-control layer.
+The admin uses internal MySQL/MariaDB accounts and supports multiple roles per user:
+
+- **ADMIN** manages users, roles, activation, and temporary password resets. It does not imply rule editing.
+- **RULE_EDITOR** reads and changes rules and may use the API Tester.
+- **RULE_APPROVER** currently has read access plus API Tester access; approval workflow is planned with Rule Sets in the next stage.
+- **VIEWER** has read-only dashboard, rule, and parameter access and cannot use the API Tester.
+
+Administrators create accounts with temporary passwords. Passwords use PHP's `PASSWORD_DEFAULT` hash and are never displayed; new and reset accounts must choose a new password before using the admin. Five consecutive failures lock an active account for 15 minutes. Sessions expire after 30 minutes of inactivity, rotate their identifier at login, and use HttpOnly, SameSite=Lax cookies (plus Secure over HTTPS). Every state-changing request uses POST and CSRF protection. Login and user-management events are appended to `audit_log` without passwords or password hashes.
+
+LDAP, Active Directory, and SSO are not implemented. Browser authentication deliberately does not protect `/evaluate.php`; API authentication remains a separate stage.
+
+### Updating an existing database
+
+`sql/database.sql` is a complete fresh-install schema and recreates all tables. For an existing deployment, back up the database and apply the `users`, `roles`, `user_roles`, and `audit_log` definitions and role seed statements from the beginning of that file without running its `DROP TABLE` statements or reimporting demo rules. Then run the initial administrator command above.
 
 ## Project structure
 
@@ -78,7 +95,7 @@ All writes use POST, prepared statements, validation, output escaping, and a ses
 admin/       Admin pages and shared layout partials
 assets/      Local CSS and vanilla JavaScript
 config/      Committable example configuration (real config is ignored)
-src/         PDO connection, repository, and generic rule engine
+src/         PDO connection, reusable authentication/RBAC services, repositories, and rule engine
 sql/         Schema, indexes, foreign key, and demo seed data
 tests/       Dependency-free rule engine checks
 evaluate.php Raw JSON API endpoint
