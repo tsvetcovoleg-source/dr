@@ -1,0 +1,3 @@
+<?php
+declare(strict_types=1); use DecisionRules\RuleSetRepository;
+require __DIR__.'/_auth.php';$auth->requireRole('RULE_EDITOR');if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Method not allowed');}verify_csrf();$id=filter_input(INPUT_POST,'id',FILTER_VALIDATE_INT);$user=$auth->requireLogin();try{(new RuleSetRepository($pdo))->submit((int)$id,(int)$user['id'],$user['username'],trim((string)($_POST['submission_comment']??''))?:null);$_SESSION['flash']='Rule Set submitted for approval.';redirect('rule_set_view.php?id='.(int)$id);}catch(DomainException $e){http_response_code(403);exit(e($e->getMessage()));}

@@ -107,7 +107,7 @@ class RuleRepository
         return $rules[0] ?? null;
     }
 
-    public function save(array $rule, array $conditions, ?int $id = null): int
+    public function save(array $rule, array $conditions, ?int $id = null, ?int $userId = null): int
     {
         $this->pdo->beginTransaction();
         try {
@@ -126,6 +126,7 @@ class RuleRepository
             foreach ($conditions as $i => $condition) {
                 $stmt->execute([$id,$condition['field_name'],$condition['operator'],$condition['value'],$i + 1]);
             }
+            if ($userId !== null) $this->recordContribution((int)$rule['rule_set_id'], $userId);
             $this->pdo->commit();
             return $id;
         } catch (Throwable $e) {
@@ -134,19 +135,23 @@ class RuleRepository
         }
     }
 
-    public function setActive(int $id, bool $active): void
+    public function setActive(int $id, bool $active, ?int $userId = null): void
     {
         $this->assertDraftRule($id);
         $stmt = $this->pdo->prepare('UPDATE rules SET active=? WHERE id=?');
         $stmt->execute([$active ? 1 : 0, $id]);
+        if ($userId !== null) { $rule=$this->find($id); $this->recordContribution((int)$rule['rule_set_id'],$userId); }
     }
 
-    public function delete(int $id): void
+    public function delete(int $id, ?int $userId = null): void
     {
         $this->assertDraftRule($id);
-        $stmt = $this->pdo->prepare('DELETE FROM rules WHERE id=?');
+        $rule=$this->find($id); $stmt = $this->pdo->prepare('DELETE FROM rules WHERE id=?');
         $stmt->execute([$id]);
+        if ($userId !== null) $this->recordContribution((int)$rule['rule_set_id'],$userId);
     }
+
+    private function recordContribution(int $setId,int $userId): void { $this->pdo->prepare('INSERT IGNORE INTO rule_set_contributors(rule_set_id,user_id) VALUES(?,?)')->execute([$setId,$userId]);$this->pdo->prepare('UPDATE rule_sets SET last_modified_by=?,last_modified_at=NOW() WHERE id=?')->execute([$userId,$setId]); }
 
     private function assertDraftRule(int $id): void { $stmt=$this->pdo->prepare('SELECT rule_set_id FROM rules WHERE id=?');$stmt->execute([$id]);$set=$stmt->fetchColumn();if(!$set) throw new \DomainException('Rule not found.');$this->assertDraftSet((int)$set); }
     private function assertDraftSet(int $id): void { $stmt=$this->pdo->prepare('SELECT status FROM rule_sets WHERE id=?');$stmt->execute([$id]);if($stmt->fetchColumn()!=='DRAFT') throw new \DomainException('Only Draft Rule Sets can be changed.'); }
