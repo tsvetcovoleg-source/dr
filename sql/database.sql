@@ -50,6 +50,7 @@ CREATE TABLE rule_set_contributors (rule_set_id BIGINT UNSIGNED NOT NULL,user_id
 CREATE TABLE rules (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
  rule_set_id BIGINT UNSIGNED NOT NULL,
+ source_rule_id BIGINT UNSIGNED NULL,
  rule_code VARCHAR(50) NOT NULL,
  stage_name VARCHAR(64) NOT NULL,
  avg_actual_pd DECIMAL(8,4) NOT NULL,
@@ -59,8 +60,10 @@ CREATE TABLE rules (
  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
  INDEX idx_rules_stage_active_priority (stage_name, active, priority),
+ INDEX idx_rules_source_rule(source_rule_id),
  UNIQUE KEY uq_rules_set_code(rule_set_id,rule_code), INDEX idx_rules_rule_set(rule_set_id),
- CONSTRAINT fk_rules_rule_set FOREIGN KEY(rule_set_id) REFERENCES rule_sets(id)
+ CONSTRAINT fk_rules_rule_set FOREIGN KEY(rule_set_id) REFERENCES rule_sets(id),
+ CONSTRAINT fk_rules_source_rule FOREIGN KEY(source_rule_id) REFERENCES rules(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE rule_conditions (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
