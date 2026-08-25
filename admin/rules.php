@@ -1,9 +1,6 @@
 <?php
-declare(strict_types=1);
-use DecisionRules\Database; use DecisionRules\RuleRepository;
-require __DIR__.'/_auth.php'; $auth->requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER']);
-try { $repo=new RuleRepository(Database::connect(dirname(__DIR__))); $rules=$repo->all(); $error=null; } catch(Throwable $e) { $rules=[]; $error=$e->getMessage(); }
-$title='Rules'; $activePage='rules'; require __DIR__.'/partials/header.php';
-?>
-<?php if($error): ?><div class="alert error"><?= e($error) ?></div><?php endif; ?><section class="panel"><div class="panel-head"><div><h2>Decision rule inventory</h2><p>Rules are evaluated by stage, priority, then identifier.</p></div><?php if($auth->hasRole('RULE_EDITOR')):?><a class="btn primary" href="rule_edit.php">+ Add Rule</a><?php endif;?></div><?php $showActions=$auth->hasRole('RULE_EDITOR'); require __DIR__.'/partials/rules_table.php'; ?></section><?php require __DIR__.'/partials/footer.php'; ?>
-
+declare(strict_types=1); use DecisionRules\RuleRepository; use DecisionRules\RuleSetRepository;
+require __DIR__.'/_auth.php';$auth->requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER']);
+try{$repo=new RuleRepository($pdo);$setRepo=new RuleSetRepository($pdo);$sets=$setRepo->all();$selectedId=filter_input(INPUT_GET,'rule_set_id',FILTER_VALIDATE_INT)?:($setRepo->active()['id']??0);$selected=$setRepo->find((int)$selectedId);if(!$selected)throw new DomainException('Rule Set not found.');$rules=$repo->all((int)$selectedId);$error=null;}catch(Throwable $e){$rules=[];$sets=[];$error=$e->getMessage();}
+$title='Rules';$activePage='rules';require __DIR__.'/partials/header.php';?>
+<?php if($error):?><div class="alert error"><?=e($error)?></div><?php else:?><section class="panel"><div class="panel-head"><div><h2>Rules — Rule Set v<?=(int)$selected['version']?> <span class="badge <?=$selected['status']==='ACTIVE'?'on':'off'?>"><?=e(str_replace('_',' ',$selected['status']))?></span></h2><form method="get"><label>Rule Set <select name="rule_set_id" onchange="this.form.submit()"><?php foreach($sets as $set):?><option value="<?=(int)$set['id']?>" <?=$set['id']==$selectedId?'selected':''?>>v<?=(int)$set['version']?> <?=e(str_replace('_',' ',$set['status']))?></option><?php endforeach;?></select></label></form></div><?php if($auth->hasRole('RULE_EDITOR')&&$selected['status']==='DRAFT'):?><a class="btn primary" href="rule_edit.php?rule_set_id=<?=(int)$selectedId?>">+ Add Rule</a><?php endif;?></div><?php $showActions=$auth->hasRole('RULE_EDITOR')&&$selected['status']==='DRAFT';require __DIR__.'/partials/rules_table.php';?></section><?php endif;require __DIR__.'/partials/footer.php';?>
