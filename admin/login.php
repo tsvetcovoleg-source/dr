@@ -1,0 +1,7 @@
+<?php
+declare(strict_types=1);
+require __DIR__.'/_auth.php';
+if($auth->user()){redirect(!empty($_SESSION['auth']['must_change_password'])?'change_password.php':'index.php');}
+$error='';
+if($_SERVER['REQUEST_METHOD']==='POST'){verify_csrf();$username=trim((string)($_POST['username']??''));if($auth->login($username,(string)($_POST['password']??'')))redirect(!empty($_SESSION['auth']['must_change_password'])?'change_password.php':'index.php');$error='Invalid username or password';}
+?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Login · Decision Rules</title><link rel="stylesheet" href="../assets/css/app.css"></head><body class="login-page"><main class="login-card panel"><a class="brand login-brand" href="login.php"><span class="brand-mark">DR</span><span><strong>Decision Rules</strong><small>Administration</small></span></a><h1>Sign in</h1><p class="muted">Use your internal account.</p><?php if($error):?><div class="alert error"><?=e($error)?></div><?php endif;?><form method="post"><input type="hidden" name="csrf" value="<?=e(csrf_token())?>"><label>Username<input name="username" autocomplete="username" required autofocus></label><label>Password<input type="password" name="password" autocomplete="current-password" required></label><button class="btn primary login-button">Sign in</button></form></main></body></html>

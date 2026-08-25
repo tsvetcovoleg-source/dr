@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 use DecisionRules\Database; use DecisionRules\RuleRepository;
-require_once __DIR__.'/../src/bootstrap.php';
+require __DIR__.'/_auth.php'; $auth->requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER']);
 try { $repo=new RuleRepository(Database::connect(dirname(__DIR__))); $counts=$repo->counts(); $rules=$repo->allActive(); $error=null; } catch(Throwable $e) { $counts=['total'=>0,'active'=>0,'hard'=>0,'review'=>0,'segmentation'=>0]; $rules=[]; $error=$e->getMessage(); }
 $title='Dashboard'; $activePage='dashboard'; require __DIR__.'/partials/header.php';
 ?>
