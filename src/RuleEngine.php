@@ -11,6 +11,8 @@ final class RuleEngine
     {
         $started = hrtime(true);
         $rules = $this->repository->activeRules();
+        $ruleSet = $this->repository->activeRuleSet();
+        if (!$ruleSet) throw new \RuntimeException('No Active Rule Set exists.');
         $missing = [];
         $matchedByStage = array_fill_keys(RuleRepository::STAGES, []);
 
@@ -52,6 +54,7 @@ final class RuleEngine
             'success' => true,
             'decision' => $decision,
             'stage' => $stage,
+            'rule_set' => ['id'=>(int)$ruleSet['id'], 'version'=>(int)$ruleSet['version']],
             'matched_rules' => $matches,
             'missing_fields' => array_keys($missing),
             'meta' => ['rules_checked' => count($rules), 'execution_time_ms' => round((hrtime(true) - $started) / 1e6, 2)],
@@ -97,4 +100,3 @@ final class RuleEngine
         ];
     }
 }
-

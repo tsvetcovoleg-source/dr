@@ -6,7 +6,7 @@ use DecisionRules\RuleEngine; use DecisionRules\RuleRepository;
 
 final class MemoryRepository extends RuleRepository {
     public function __construct(private array $data) {}
-    public function activeRules(): array { return $this->data; }
+    public function activeRules(): array { return $this->data; } public function activeRuleSet(): ?array { return ['id'=>1,'version'=>1]; }
 }
 function rule(string $code,string $stage,int $priority,array $conditions,string $pd='1.00'): array { return ['id'=>$priority,'rule_code'=>$code,'stage_name'=>$stage,'avg_actual_pd'=>$pd,'priority'=>$priority,'conditions'=>array_map(fn($c)=>['field_name'=>$c[0],'operator'=>$c[1],'value'=>$c[2]],$conditions)]; }
 function expect(bool $condition,string $message): void { if(!$condition){fwrite(STDERR,"FAIL: $message\n");exit(1);} echo "PASS: $message\n"; }
@@ -17,6 +17,7 @@ $rules=[
 ];
 $engine=new RuleEngine(new MemoryRepository($rules));
 $a=$engine->evaluate(['BANK_CREDIT_HISTORY_MONTHS_BEFORE_LOAN_DATE'=>'39','CREDIT_ACCOUNTS_OPENED_6M_BEFORE_LOAN_DATE_COUNT'=>'2','UNCLOSED_OTHER_CREDIT_ACCOUNTS_COUNT'=>'1']); expect($a['decision']==='DECLINE'&&$a['matched_rules'][0]['rule_code']==='HR_002','Test A: HR_002 declines');
+expect($a['rule_set']===['id'=>1,'version'=>1],'Evaluation identifies the Active Rule Set');
 expect(!array_key_exists('matched_rule',$a)&&array_keys($a['matched_rules'][0])===['rule_code','avg_actual_pd','priority'],'Test A response contains only the documented matched rule fields');
 ini_set('serialize_precision','-1');
 $rawJson=json_encode($a,JSON_THROW_ON_ERROR);
