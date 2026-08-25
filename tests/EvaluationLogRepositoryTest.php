@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__.'/../src/EvaluationLogRepository.php';
+use DecisionRules\EvaluationLogRepository;
+function evalLogAssert(bool $ok,string $message):void{if(!$ok)throw new RuntimeException($message);}
+$ids=array_map(fn()=>EvaluationLogRepository::requestId(),range(1,100));
+evalLogAssert(count(array_unique($ids))===100,'Every call needs a unique request ID.');
+evalLogAssert((bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',$ids[0]),'Request ID must be a random UUID v4.');
+$safe=EvaluationLogRepository::sanitize(['AGE'=>'65','password'=>'x','authorization'=>'Bearer x','nested'=>['api_key'=>'x','session_id'=>'x']]);
+evalLogAssert($safe['AGE']==='65','Business parameters may not be redacted.');
+evalLogAssert($safe['password']==='[REDACTED]'&&$safe['nested']['api_key']==='[REDACTED]','Technical secrets must be redacted recursively.');
+$pdo=new PDO('sqlite::memory:');$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE,PDO::FETCH_ASSOC);
+$pdo->exec("CREATE TABLE evaluation_logs(id INTEGER PRIMARY KEY AUTOINCREMENT,request_id TEXT UNIQUE,received_at TEXT,completed_at TEXT,http_method TEXT,endpoint TEXT,client_ip TEXT,user_agent TEXT,request_payload TEXT,response_payload TEXT,http_status INTEGER,success INTEGER,decision TEXT,stage TEXT,rule_set_id INTEGER,rule_set_version INTEGER,matched_rules TEXT,error_code TEXT,execution_time_ms REAL,log_status TEXT)");
+$storage=new EvaluationLogRepository($pdo);$id=$storage->start(['request_id'=>$ids[0],'received_at'=>'2026-08-25 12:00:00.123456','http_method'=>'GET','endpoint'=>'/evaluate.php','request_payload'=>['AGE'=>'65','password'=>'hidden']]);
+$response=['success'=>true,'decision'=>'DECLINE','stage'=>'HARD_REFUSAL_STAGE','rule_set'=>['id'=>2,'version'=>2],'matched_rules'=>[['rule_code'=>'HR_001']]];
+$storage->complete($id,['completed_at'=>'2026-08-25 12:00:00.124999','response_payload'=>$response,'http_status'=>200,'execution_time_ms'=>1.543]);$stored=$storage->find($id);
+evalLogAssert($stored['log_status']==='COMPLETED'&&$stored['decision']==='DECLINE'&&$stored['stage']==='HARD_REFUSAL_STAGE','Successful evaluation metadata was not stored.');
+evalLogAssert((int)$stored['rule_set_id']===2&&(int)$stored['rule_set_version']===2&&$stored['matched_rules_data'][0]['rule_code']==='HR_001','Rule Set and matched rules were not stored.');
+evalLogAssert($stored['request_payload_data']['AGE']==='65'&&$stored['request_payload_data']['password']==='[REDACTED]'&&$stored['response_payload_data']===$response,'Exact sanitized request and response evidence was not stored.');
+evalLogAssert($stored['received_at']&&$stored['completed_at']&&(float)$stored['execution_time_ms']>0,'Evaluation timestamps and duration were not populated.');
+$failedId=$storage->start(['request_id'=>$ids[1],'received_at'=>'2026-08-25 12:01:00.000001','http_method'=>'GET','endpoint'=>'/evaluate.php','request_payload'=>[]]);$storage->fail($failedId,['completed_at'=>'2026-08-25 12:01:00.001001','response_payload'=>['success'=>false,'error'=>['code'=>'DATABASE_ERROR','message'=>'Unable to evaluate rules']],'http_status'=>500,'execution_time_ms'=>1.0]);$failed=$storage->find($failedId);
+evalLogAssert($failed['log_status']==='ERROR'&&$failed['error_code']==='DATABASE_ERROR'&&(int)$failed['http_status']===500&&(int)$failed['success']===0,'Failed evaluation metadata was not stored.');
+$repo=file_get_contents(__DIR__.'/../src/EvaluationLogRepository.php');$endpoint=file_get_contents(__DIR__.'/../evaluate.php');$ui=file_get_contents(__DIR__.'/../admin/evaluations.php');
+evalLogAssert(str_contains($repo,"'PROCESSING'" )&&str_contains($repo,"'COMPLETED'")&&str_contains($repo,"'ERROR'"),'All lifecycle states must be stored.');
+evalLogAssert(substr_count($endpoint,'->evaluate(')===1,'RuleEngine must execute exactly once per request.');
+evalLogAssert(strpos($endpoint,'->start(')<strpos($endpoint,'->evaluate('),'Request must be inserted before evaluation.');
+evalLogAssert(str_contains($endpoint,"error_log('Evaluation log"),'Logging failures must not replace the business response.');
+evalLogAssert(str_contains($repo,'ORDER BY received_at DESC,id DESC LIMIT'),'UI query must be bounded and newest-first.');
+evalLogAssert(!preg_match('/method=["\']post["\']/i',$ui),'Evaluation UI must be read-only.');
+evalLogAssert(str_contains($ui,"requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER'])"),'Every read role needs UI access.');
+foreach(['request_id','decision','stage','rule_set_version','rule_code','result','http_status'] as $filter)evalLogAssert(str_contains($ui,"'$filter'"),"Missing $filter filter.");
+echo "Evaluation log checks passed.\n";

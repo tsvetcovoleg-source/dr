@@ -1,0 +1,9 @@
+<?php
+declare(strict_types=1);use DecisionRules\AuditRepository;
+require __DIR__.'/_auth.php';$auth->requireAnyRole(['ADMIN','RULE_EDITOR','RULE_APPROVER','VIEWER']);$id=filter_input(INPUT_GET,'id',FILTER_VALIDATE_INT);$repo=new AuditRepository($pdo);$event=$id?$repo->find($id):null;if(!$event){http_response_code(404);exit('Audit event not found');}$title='Audit event #'.$event['id'];$activePage='audit';require __DIR__.'/partials/header.php';$d=$event['details_data'];
+?>
+<section class="panel"><div class="panel-head"><div><span class="badge audit-<?=e(strtolower(str_replace(' ','-',$event['category'])))?>"><?=e($event['label'])?></span><h2><?=e($event['label'])?></h2></div><a href="audit.php">Back to Audit Log</a></div><div class="audit-meta">
+<?php foreach(['Event'=>$event['event_type'],'Date / time'=>$event['created_at'],'User ID'=>$event['user_id']?:'—','Username'=>$event['username']?:'System','IP address'=>$event['ip_address']?:'—','Entity type'=>$event['entity_type']?:'—','Entity ID'=>$event['entity_id']?:'—'] as $label=>$value):?><div><small><?=e($label)?></small><strong><?=e($value)?></strong></div><?php endforeach;?></div></section>
+<section class="panel"><div class="panel-head"><div><h2>Details</h2><p>Business-relevant information captured when the event occurred.</p></div><?php if(!empty($d['rule_set_id'])&&!empty($d['rule_set_version'])):?><a href="rule_set_view.php?id=<?=(int)$d['rule_set_id']?>">Rule Set v<?=(int)$d['rule_set_version']?> →</a><?php endif;?></div><div class="audit-detail"><?php require __DIR__.'/partials/audit_event.php';?></div></section>
+<details class="panel raw-details"><summary>Raw details</summary><pre><?=e(json_encode($d,JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))?></pre></details>
+<?php require __DIR__.'/partials/footer.php';?>
