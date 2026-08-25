@@ -10,6 +10,7 @@ require_once __DIR__ . '/RuleRepository.php';
 require_once __DIR__ . '/RuleSetRepository.php';
 require_once __DIR__ . '/RuleEngine.php';
 require_once __DIR__ . '/AuditLogger.php';
+require_once __DIR__ . '/AuditRepository.php';
 require_once __DIR__ . '/UserRepository.php';
 require_once __DIR__ . '/Auth.php';
 
