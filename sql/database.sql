@@ -145,3 +145,33 @@ INSERT INTO rule_conditions(rule_id,field_name,operator,value,sort_order) VALUES
 INSERT INTO rules(rule_set_id,rule_code,stage_name,avg_actual_pd,priority,active,description) VALUES(1,'PS_004','PORTFOLIO_SEGMENTATION_STAGE',1.06,40,1,'Demo decision rule PS_004');
 INSERT INTO rule_conditions(rule_id,field_name,operator,value,sort_order) VALUES(LAST_INSERT_ID(),'BANK_CREDIT_ACCOUNTS_COUNT','>','2.5',1);
 INSERT INTO rule_conditions(rule_id,field_name,operator,value,sort_order) VALUES(LAST_INSERT_ID(),'UNCLOSED_NONBANKING_CREDIT_ACCOUNTS_COUNT','<=','0.5',2);
+-- Evaluation/API request-response journal. This is independent from audit_log and preserves all existing data.
+CREATE TABLE IF NOT EXISTS evaluation_logs (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ request_id VARCHAR(64) NOT NULL UNIQUE,
+ received_at DATETIME(6) NOT NULL,
+ completed_at DATETIME(6) NULL,
+ http_method VARCHAR(10) NOT NULL,
+ endpoint VARCHAR(191) NOT NULL,
+ client_ip VARCHAR(45) NULL,
+ user_agent VARCHAR(500) NULL,
+ request_payload JSON NULL,
+ response_payload JSON NULL,
+ http_status SMALLINT UNSIGNED NULL,
+ success TINYINT(1) NULL,
+ decision VARCHAR(32) NULL,
+ stage VARCHAR(64) NULL,
+ rule_set_id BIGINT UNSIGNED NULL,
+ rule_set_version INT UNSIGNED NULL,
+ matched_rules JSON NULL,
+ error_code VARCHAR(64) NULL,
+ execution_time_ms DECIMAL(12,3) NULL,
+ log_status VARCHAR(20) NOT NULL DEFAULT 'PROCESSING',
+ INDEX idx_evaluation_received (received_at),
+ INDEX idx_evaluation_decision (decision),
+ INDEX idx_evaluation_rule_set_version (rule_set_version),
+ INDEX idx_evaluation_http_status (http_status),
+ INDEX idx_evaluation_success (success),
+ CONSTRAINT fk_evaluation_rule_set FOREIGN KEY(rule_set_id) REFERENCES rule_sets(id) ON DELETE SET NULL,
+ CONSTRAINT chk_evaluation_log_status CHECK(log_status IN ('PROCESSING','COMPLETED','ERROR'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
